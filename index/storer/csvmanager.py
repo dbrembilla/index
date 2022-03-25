@@ -73,6 +73,7 @@ class CSVManager(object):
             with open(csv_path, encoding="utf-8") as f:
                 csv_content = ""
                 for idx, line in enumerate(f.readlines()):
+                    print(idx,line)
                     if header is None:
                         header = line
                         csv_content = header
@@ -81,7 +82,7 @@ class CSVManager(object):
                             result.append(fun(csv_content, **params))
                             csv_content = header
                         csv_content += line
-
+            print('content ',csv_content)
             result.append(fun(csv_content, **params))
 
         return result

@@ -149,24 +149,24 @@ if __name__ == "__main__":
                                             "final CSV/TTL/Scholix files.")
 
     arg_parser.add_argument("-c", "--pclass", required=True,
-                            help="The name of the class of data source to use to process citatation data.", 
-                            choices=['csv', 'crossref', 'croci'])
+                            help="The name of the class of data source to use to process citation data.", 
+                            choices=['csv', 'crossref', 'croci']) #'croci'
     arg_parser.add_argument("-i", "--input", required=True,
                             help="The input file/directory to provide as input of the specified input "
-                                 "Python file (using -p).")
+                                 "Python file (using -p).") #'mockup_data'
     arg_parser.add_argument("-d", "--data", required=True,
                             help="The directory containing all the CSV files already added in the Index, "
-                                 "including data and provenance files.")
+                                 "including data and provenance files.")#'given_data'
     arg_parser.add_argument("-o", "--orcid", default=None,
                             help="ORCID API key to be used to query the ORCID API.")
     arg_parser.add_argument("-l", "--lookup", required=True,
-                            help="The lookup table that must be used to produce OCIs.")
+                            help="The lookup table that must be used to produce OCIs.") #'index/test_data/lookup_full.csv'
     arg_parser.add_argument("-b", "--baseurl", required=True, default="",
-                            help="The base URL of the dataset")
+                            help="The base URL of the dataset") #'https://w3id.org/oc/index/croci/'
     arg_parser.add_argument("-ib", "--idbaseurl", required=True, default="",
-                            help="The base URL of the identifier of citing and cited entities, if any")
+                            help="The base URL of the identifier of citing and cited entities, if any")#-ib "http://dx.doi.org/"
     arg_parser.add_argument("-doi", "--doi_file", default=None,
-                            help="The file where the valid and invalid DOIs are stored.")
+                            help="The file where the valid and invalid DOIs are stored.") #-doi "invalid_doi/data.csv"
     arg_parser.add_argument("-date", "--date_file", default=None,
                             help="The file that maps id of bibliographic resources with their publication date.")
     arg_parser.add_argument("-orcid", "--orcid_file", default=None,
@@ -179,11 +179,11 @@ if __name__ == "__main__":
     arg_parser.add_argument("-a", "--agent", required=True, default="https://w3id.org/oc/index/prov/pa/1",
                             help="The URL of the agent providing or processing the citation data.")
     arg_parser.add_argument("-s", "--source", required=True,
-                            help="The URL of the source from where the citation data have been extracted.")
+                            help="The URL of the source from where the citation data have been extracted.")#'https://example.org/'
     arg_parser.add_argument("-sv", "--service", required=True,
                             help="The name of the service that will made available the citation data.")
     arg_parser.add_argument("-v", "--verbose", action="store_true", default=False,
-                            help="Print the messages on screen.")
+                            help="Print the messages on screen.")#'-v True
     arg_parser.add_argument("-na", "--no_api", action="store_true", default=False,
                             help="Tell the tool explicitly not to use the APIs of the various finders.")
     arg_parser.add_argument("-pn", "--process_number", default=1, type=int,
