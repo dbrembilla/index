@@ -9,14 +9,14 @@ from requests.exceptions import ConnectionError
 from time import sleep
 
 class MetaIDManager(IdentifierManager):
-    def __init__(self, valid_metaid=None, use_api_service=True):
+    def __init__(self, valid_metaid=None, use_api_service=False):
         if valid_metaid is None:
             valid_metaid = CSVManager(store_new=False)
 
         self.valid_metaid = valid_metaid
-        self.p = "br\\"
+        self.p = "br/"
         self.use_api_service=use_api_service
-        self.metaid_uri = "https://w3id.org/oc/meta/br/060"
+        #self.metaid_uri = "https://w3id.org/oc/meta/br/060" #test from the suffix
         super(MetaIDManager, self).__init__()
 
     def set_valid(self, id_string):
@@ -28,7 +28,7 @@ class MetaIDManager(IdentifierManager):
     def is_valid(self, id_string):
         metaid = self.normalise(id_string, include_prefix=True)
 
-        if metaid is None or match("^br\\10\\..+/.+$", metaid) is None:
+        if metaid is None or match("^br\\060..+/.+$", metaid) is None:
             return False
         else:
             if self.valid_metaid.get_value(metaid) is None:
