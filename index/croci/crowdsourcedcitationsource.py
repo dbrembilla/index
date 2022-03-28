@@ -20,12 +20,14 @@ from json import load
 from csv import DictWriter
 from index.citation.citationsource import CSVFileCitationSource
 from index.identifier.doimanager import DOIManager
+from index.identifier.metaidmanager import MetaIDManager
 from index.citation.oci import Citation
 
 
 class CrowdsourcedCitationSource(CSVFileCitationSource):
     def __init__(self, src, local_name=""):
         self.doi = DOIManager()
+        self.metaid = MetaIDManager()
         super(CrowdsourcedCitationSource, self).__init__(src, local_name)
 
     def get_next_citation_data(self):
