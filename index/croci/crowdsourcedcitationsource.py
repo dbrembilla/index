@@ -17,8 +17,10 @@
 from os import walk, sep, remove
 from os.path import isdir
 from json import load
+from re import match
 from csv import DictWriter
 from index.citation.citationsource import CSVFileCitationSource
+from index.croci.glob import normalise_multiple_ids
 from index.identifier.doimanager import DOIManager
 from index.identifier.metaidmanager import MetaIDManager
 from index.citation.oci import Citation
@@ -34,8 +36,17 @@ class CrowdsourcedCitationSource(CSVFileCitationSource):
         row = self._get_next_in_file()
 
         while row is not None:
-            citing = self.doi.normalise(row.get("citing_id"))
-            cited = self.doi.normalise(row.get("cited_id"))
+            # Citing and Cited may have multiple ids:
+
+            citing = normalise_multiple_ids(row.get("citing_id").split('\s'), self.doi,self.metaid)['doi']
+
+
+            # For each id in citing, find the type of id and normalise it.
+            cited = normalise_multiple_ids(row.get("cited_id").split('\s'), self.doi,self.metaid)['doi']
+
+            # For now, let's start with dois and then it will be integrated with all ids
+
+
 
             if citing is not None and cited is not None:
                 created = row.get("citing_publication_date")
