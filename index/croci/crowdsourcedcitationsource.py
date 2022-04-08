@@ -20,7 +20,6 @@ from json import load
 from re import match
 from csv import DictWriter
 from index.citation.citationsource import CSVFileCitationSource
-from index.croci.glob import normalise_multiple_ids
 from index.identifier.doimanager import DOIManager
 from index.identifier.metaidmanager import MetaIDManager
 from index.citation.oci import Citation
@@ -36,34 +35,53 @@ class CrowdsourcedCitationSource(CSVFileCitationSource):
         row = self._get_next_in_file()
 
         while row is not None:
-            # Citing and Cited may have multiple ids:
+            # Citing and Cited may have multiple ids? 
+            citing = row.get('citing')
+            cited = row.get('cited')
+            if citing is not None or cited is not None:
+                citing_list = []
+                for id in citing.split(' '):
+                    # Normalise the id, whether it is a metaid, a doi or a pmid
+                    if 'meta:' in id: # Check with id_worker
+                        citing_list.append(self.metaid.normalise(id))
+                    elif 'doi:' in id:
+                        citing_list.append(self.doi.normalise(id))
+                    elif 'pmid:' in id: # No id specified. Might come back to this.
+                        pass
+                cited = row.get('cited')
+                cited_list = []
+                # For each id in citing, find the type of id and normalise it.
+                for id in cited.split(' '):
+                    # Normalise the id, whether it is a metaid, a doi or a pmid
+                    if 'meta:' in id:
+                        cited_list.append(self.metaid.normalise(id))
+                    elif 'doi:' in id:
+                        cited_list.append(self.doi.normalise(id))
+                    elif 'pmid:' in id:
+                        pass
+                    else:
+                        pass # No id specified. Might come back to this.
 
-            citing = normalise_multiple_ids(row.get("citing_id").split('\s'), self.doi,self.metaid)['doi']
+                # For now, let's start with dois and then it will be integrated with all ids
 
 
-            # For each id in citing, find the type of id and normalise it.
-            cited = normalise_multiple_ids(row.get("cited_id").split('\s'), self.doi,self.metaid)['doi']
+                for citing, cited in citing_list,cited_list:
+                    if len(citing_list) > 0 and len(cited_list) > 0:
+                        created = row.get("citing_publication_date")
+                        if not created:
+                            created = None # Get from meta + merge
 
-            # For now, let's start with dois and then it will be integrated with all ids
+                        cited_pub_date = row.get("cited_publication_date")
+                        if not cited_pub_date:
+                            timespan = None # Get from meta + merge
+                        else:
+                            c = Citation(None, None, created, None, cited_pub_date, None, None, None, None, "", None, None, None, None, None)
+                            timespan = c.duration
 
-
-
-            if citing is not None and cited is not None:
-                created = row.get("citing_publication_date")
-                if not created:
-                    created = None
-
-                cited_pub_date = row.get("cited_publication_date")
-                if not cited_pub_date:
-                    timespan = None
-                else:
-                    c = Citation(None, None, created, None, cited_pub_date, None, None, None, None, "", None, None, None, None, None)
-                    timespan = c.duration
+                        self.update_status_file()
+                        return citing, cited, created, timespan, None, None
 
                 self.update_status_file()
-                return citing, cited, created, timespan, None, None
-
-            self.update_status_file()
-            row = self._get_next_in_file()
+                row = self._get_next_in_file()
 
         remove(self.status_file)
