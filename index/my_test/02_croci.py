@@ -27,11 +27,11 @@ from csv import DictReader
 class CROCITest(unittest.TestCase):
 
     def setUp(self):
-        self.input_file = "index%stest_data%scroci_dump%ssource.csv" % (sep, sep, sep)
-        self.citations = "index%stest_data%scroci_dump%scitations.csv" % (sep, sep, sep)
+        self.input_file_doi = "index%stest_data%scroci_dump%ssource_doi.csv" % (sep, sep, sep)
+        self.citations_doi = "index%stest_data%scroci_dump%scitations_doi.csv" % (sep, sep, sep)
 
-    def test_citation_source(self):
-        ccs = CrowdsourcedCitationSource(self.input_file)
+    def test_citation_source_doi(self):
+        ccs = CrowdsourcedCitationSource(self.input_file_doi)
         new = []
         cit = ccs.get_next_citation_data()
         while cit is not None:
@@ -46,7 +46,7 @@ class CROCITest(unittest.TestCase):
             })
             cit = ccs.get_next_citation_data()
 
-        with open(self.citations, encoding="utf8") as f:
+        with open(self.citations_doi, encoding="utf8") as f:
             old = list(DictReader(f))
 
         self.assertEqual(new, old)

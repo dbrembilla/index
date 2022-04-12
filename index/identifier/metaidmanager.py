@@ -55,8 +55,8 @@ class MetaIDManager(IdentifierManager):
             return "v" in self.valid_metaid.get_value(metaid) 
 
     def normalise(self, id_string, include_prefix=False): # Returns MetaID itself without the prefix
-        try: # QUA VEDERE BISOGNA UNMATCHARE SE NON INIZIA CON 060<
-            metaid_string = sub("\0+", "", sub("\s+", "", unquote(id_string[id_string.index("060"):])))
+        try: # QUA VEDERE BISOGNA UNMATCHARE SE NON INIZIA CON 06< e termina con 0
+            metaid_string = sub("\0+", "", sub("\s+", "", unquote(id_string[id_string.index("06"):])))
             return "%s%s" % (self.p if include_prefix else "", metaid_string.lower().strip())
         except:  # Any error in processing the MetaID will return None
             return None

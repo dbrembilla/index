@@ -23,6 +23,7 @@ from index.citation.citationsource import CSVFileCitationSource
 from index.identifier.doimanager import DOIManager
 from index.identifier.metaidmanager import MetaIDManager
 from index.citation.oci import Citation
+#from meta.scripts.creator import Creator
 
 
 class CrowdsourcedCitationSource(CSVFileCitationSource):
@@ -36,52 +37,45 @@ class CrowdsourcedCitationSource(CSVFileCitationSource):
 
         while row is not None:
             # Citing and Cited may have multiple ids? 
-            citing = row.get('citing')
-            cited = row.get('cited')
-            if citing is not None or cited is not None:
+            citing = row.get('citing_id')
+            cited = row.get('cited_id')
+            if citing is not None and cited is not None:
                 citing_list = []
                 for id in citing.split(' '):
                     # Normalise the id, whether it is a metaid, a doi or a pmid
-                    if 'meta:' in id: # Check with id_worker
+                    if 'meta:' in id: # Chec with id_workerk match('^06(.)+0$')
                         citing_list.append(self.metaid.normalise(id))
-                    elif 'doi:' in id:
+                    elif 'doi:' in id: #match('^10\..+/.+$')
                         citing_list.append(self.doi.normalise(id))
-                    elif 'pmid:' in id: # No id specified. Might come back to this.
-                        pass
-                cited = row.get('cited')
+                    #elif 'pmid:' in id: # To be added
+                     #   pass
                 cited_list = []
                 # For each id in citing, find the type of id and normalise it.
                 for id in cited.split(' '):
                     # Normalise the id, whether it is a metaid, a doi or a pmid
-                    if 'meta:' in id:
+                    if 'meta:' in id: #match('^06(.)+0$')
                         cited_list.append(self.metaid.normalise(id))
-                    elif 'doi:' in id:
+                    elif 'doi:' in id: #or match('^10\..+/.+$')
                         cited_list.append(self.doi.normalise(id))
-                    elif 'pmid:' in id:
-                        pass
-                    else:
-                        pass # No id specified. Might come back to this.
-
+                    #elif 'pmid:' in id:
+                     #   pass
+                    # No id specified. Might come back to this.
                 # For now, let's start with dois and then it will be integrated with all ids
+                created = row.get("citing_publication_date")
+                if not created:
+                    created = None # Get from meta + merge
 
-
-                for citing, cited in citing_list,cited_list:
-                    if len(citing_list) > 0 and len(cited_list) > 0:
-                        created = row.get("citing_publication_date")
-                        if not created:
-                            created = None # Get from meta + merge
-
-                        cited_pub_date = row.get("cited_publication_date")
-                        if not cited_pub_date:
-                            timespan = None # Get from meta + merge
-                        else:
-                            c = Citation(None, None, created, None, cited_pub_date, None, None, None, None, "", None, None, None, None, None)
-                            timespan = c.duration
-
-                        self.update_status_file()
-                        return citing, cited, created, timespan, None, None
-
+                cited_pub_date = row.get("cited_publication_date")
+                if not cited_pub_date:
+                    timespan = None # Get from meta + merge
+                else:
+                    c = Citation(None, None, created, None, cited_pub_date, None, None, None, None, "", None, None, None, None, None)
+                    timespan = c.duration
+                
                 self.update_status_file()
-                row = self._get_next_in_file()
+                return citing, cited, created, timespan, None, None
+
+            self.update_status_file()
+            row = self._get_next_in_file()
 
         remove(self.status_file)
