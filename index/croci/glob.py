@@ -14,24 +14,32 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-from re import match
+from oc_graphenricher.oc_graphenricher.APIs import QueryInterface
 
-def normalise_multiple_ids(id_list, doi,metaid):
-    normalised_ids=None
-    for id in id_list:
-        if match('10\..+\/.+$',id):
-            # It's a DOI! So, normalise it as a doi. Put it in the normalised citing dict if it's normalisable.
-            # If there are multiple dois, use the first one
-            if not normalised_ids:
-                id = doi.normalise(id)
-                normalised_ids= {'doi':id}
-            elif 'doi' not in normalised_citing:
-                normalised_citing['doi'] = id
+class CrossrefDoi(QueryInterface):
+    '''This class allows to query Crossref with just the DOI'''
+    def __init__(self,
+                 crossref_min_similarity_score=0.95,
+                 max_iteration=6,
+                 sec_to_wait=10,
+                 headers={"User-Agent": "GraphEnricher (via OpenCitations - http://opencitations.net; "
+                                        "mailto:contact@opencitations.net)"},
+                 timeout=30,
+                 is_json=True):
+        self.max_iteration = max_iteration
+        self.sec_to_wait = sec_to_wait
+        self.headers = headers
+        self.timeout = timeout
+        self.is_json = is_json
+        self.crossref_min_similarity_score = crossref_min_similarity_score
+        self.__crossref_doi_url = 'https://api.crossref.org/works/'
+        super().__init__()
 
-        elif match('^060|^br\/060|meta:br\/060'):
-            if not normalised_citing:
-                id = metaid.normalise(id)
-                normalised_citing = {'metaid':id}
-            elif 'metaid' not in normalised_citing:
-                normalised_citing['metaid'] = id
-    return normalised_ids
+        def query(self, doi):
+            '''
+            This methods extracts information about a publication given a DOI.
+            '''
+            url_cr = self.__crossref_doi_url + doi
+            try:
+                r_cr = requests.get(url_cr, headers=self.headers, timeout=60)
+                
