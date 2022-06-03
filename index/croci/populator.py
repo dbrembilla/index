@@ -308,7 +308,7 @@ class Populator:
 
         return info
 
-    def wd_pipeline(self, id): # da implementare
+    def wd_pipeline(self, id): # da implementare. vedi come fa ramose
         '''This method is the pipeline for wikidata'''
         return {'id': id, 'title': '', 'author': "", 'pub_date': '', 'venue': '', 'volume': '', 'issue': '', 'page': '', 'type': '', 'publisher': '', 'editor': ''}
 
