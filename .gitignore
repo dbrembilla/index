@@ -1,5 +1,7 @@
 __pycache__/
 coci_test/
 doci/
+meta/
+oc_graphenricher/
 launch.txt
 *.pyc
