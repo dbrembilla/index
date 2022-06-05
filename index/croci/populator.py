@@ -344,6 +344,7 @@ class Populator:
         for id in found_ids:
             row = self.choose_service(id) # this chooses the pipeline
             if os.path.isfile('%s%sto_meta.csv' %(self.tmp_dir, sep)): # TODO: Come mantenere distinti i file per evitare che si sovrappongano?
+                with open('%s%sto_meta.csv' %(self.tmp_dir, sep), 'a') as w:
                     writer = csv.writer(w)
                     writer.writerow(row.values())
             else:
