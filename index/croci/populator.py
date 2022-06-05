@@ -143,10 +143,17 @@ class Populator:
         result = list()
         for id in id_list:
             info = dict()
+<<<<<<< HEAD
             # Here we choose the service to query
 
             info = self.choose_service(id)
             # crossref processor needs a list of items in format:
+=======
+            #here we choose the service to query
+
+            info = self.choose_service(id)
+            #crossref processor needs a list of items in format:
+>>>>>>> 1b2bad53e118e795f3a8517dec768c2ba484794d
             # {
             #   'items':[
             #  ...]
@@ -172,7 +179,11 @@ class Populator:
             result =  self.wd_pipeline(ids['wdid'])
             
         elif 'pmid' in ids:
+<<<<<<< HEAD
             result =  self.pm_pipeline(ids['pmid']) # TODO: implement pmid pipeline
+=======
+            result =  self.pm_pipeline(ids['pmid']) #to be implemented
+>>>>>>> 1b2bad53e118e795f3a8517dec768c2ba484794d
         tmp = ids
         for id in tmp:
             if id != 'wdid':
@@ -193,6 +204,7 @@ class Populator:
             if 'doi:' in id:
                 id = self.doi.normalise(id) 
                 if id != None:
+<<<<<<< HEAD
                     if 'doi:%s' %id in self.seen_ids and caching: # TODO: caching che ha senso
                         return self.seen_ids['doi:%s' %id]
                     identifiers['doi'] = id
@@ -200,6 +212,15 @@ class Populator:
                 if id in self.seen_ids and caching: # TODO: caching che ha senso
                     return self.seen_ids[id]
                 identifiers['pmid'] = id.split('pmid:')[1] # TODO normalise pmid
+=======
+                    if 'doi:%s' %id in self.seen_ids and caching: # da sistemare
+                        return self.seen_ids['doi:%s' %id]
+                    identifiers['doi'] = id
+            elif 'pmid:' in id:
+                if id in self.seen_ids and caching: # da sistemare
+                    return self.seen_ids[id]
+                identifiers['pmid'] = id.split('pmid:')[1] #pmid normalise
+>>>>>>> 1b2bad53e118e795f3a8517dec768c2ba484794d
                 
             elif 'wd:' in id:
                 id = self.wikidata_id.normalise(id)
@@ -308,7 +329,11 @@ class Populator:
 
         return info
 
+<<<<<<< HEAD
     def wd_pipeline(self, id): # TODO: da impleementare vedi come fa ramose
+=======
+    def wd_pipeline(self, id): # da implementare. vedi come fa ramose
+>>>>>>> 1b2bad53e118e795f3a8517dec768c2ba484794d
         '''This method is the pipeline for wikidata'''
         return {'id': id, 'title': '', 'author': "", 'pub_date': '', 'venue': '', 'volume': '', 'issue': '', 'page': '', 'type': '', 'publisher': '', 'editor': ''}
 
@@ -343,7 +368,11 @@ class Populator:
                 writer.writerows([['citing','cited'], pointers])
         for id in found_ids:
             row = self.choose_service(id) # this chooses the pipeline
+<<<<<<< HEAD
             if os.path.isfile('%s%sto_meta.csv' %(self.tmp_dir, sep)): # TODO: Come mantenere distinti i file per evitare che si sovrappongano?
+=======
+            if os.path.isfile('%s%sto_meta.csv' %(self.tmp_dir, sep)): # DA PENSARE: Come mantenere distinti i file per evitare che si sovrappongano?
+>>>>>>> 1b2bad53e118e795f3a8517dec768c2ba484794d
                 with open('%s%sto_meta.csv' %(self.tmp_dir, sep), 'a') as w:
                     writer = csv.writer(w)
                     writer.writerow(row.values())
