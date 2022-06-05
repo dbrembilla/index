@@ -143,10 +143,10 @@ class Populator:
         result = list()
         for id in id_list:
             info = dict()
-            #here we choose the service to query
+            # Here we choose the service to query
 
             info = self.choose_service(id)
-            #crossref processor needs a list of items in format:
+            # crossref processor needs a list of items in format:
             # {
             #   'items':[
             #  ...]
@@ -172,7 +172,7 @@ class Populator:
             result =  self.wd_pipeline(ids['wdid'])
             
         elif 'pmid' in ids:
-            result =  self.pm_pipeline(ids['pmid']) #to be implemented
+            result =  self.pm_pipeline(ids['pmid']) # TODO: implement pmid pipeline
         tmp = ids
         for id in tmp:
             if id != 'wdid':
@@ -193,13 +193,13 @@ class Populator:
             if 'doi:' in id:
                 id = self.doi.normalise(id) 
                 if id != None:
-                    if 'doi:%s' %id in self.seen_ids and caching: # da sistemare
+                    if 'doi:%s' %id in self.seen_ids and caching: # TODO: caching che ha senso
                         return self.seen_ids['doi:%s' %id]
                     identifiers['doi'] = id
             elif 'pmid:' in id:
-                if id in self.seen_ids and caching: # da sistemare
+                if id in self.seen_ids and caching: # TODO: caching che ha senso
                     return self.seen_ids[id]
-                identifiers['pmid'] = id.split('pmid:')[1] #pmid normalise
+                identifiers['pmid'] = id.split('pmid:')[1] # TODO normalise pmid
                 
             elif 'wd:' in id:
                 id = self.wikidata_id.normalise(id)
@@ -308,7 +308,7 @@ class Populator:
 
         return info
 
-    def wd_pipeline(self, id): # da implementare. vedi come fa ramose
+    def wd_pipeline(self, id): # TODO: da impleementare vedi come fa ramose
         '''This method is the pipeline for wikidata'''
         return {'id': id, 'title': '', 'author': "", 'pub_date': '', 'venue': '', 'volume': '', 'issue': '', 'page': '', 'type': '', 'publisher': '', 'editor': ''}
 
@@ -343,7 +343,7 @@ class Populator:
                 writer.writerows([['citing','cited'], pointers])
         for id in found_ids:
             row = self.choose_service(id) # this chooses the pipeline
-            if os.path.isfile('%s%sto_meta.csv' %(self.tmp_dir, sep)): # DA PENSARE: Come mantenere distinti i file per evitare che si sovrappongano?
+            if os.path.isfile('%s%sto_meta.csv' %(self.tmp_dir, sep)): # TODO: Come mantenere distinti i file per evitare che si sovrappongano?
                 with open('%s%sto_meta.csv' %(self.tmp_dir, sep), 'a') as w:
                     writer = csv.writer(w)
                     writer.writerow(row.values())
