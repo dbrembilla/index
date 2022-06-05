@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# Copyright (c) 2019, Silvio Peroni <essepuntato@gmail.com>
+# Copyright (c) 2022, Silvio Peroni <essepuntato@gmail.com>
 #
 # Permission to use, copy, modify, and/or distribute this software for any purpose
 # with or without fee is hereby granted, provided that the above copyright notice
@@ -61,21 +61,4 @@ class MetaIDManager(IdentifierManager):
         except:  # Any error in processing the MetaID will return None
             return None
 
-    def __metaid_exists(self, metaid_full):
-        if self.use_api_service:
-            metaid = self.normalise(metaid_full)
-            tentative = 3
-            while tentative:
-                tentative -= 1
-                try:
-                    r = get(self.api + quote(metaid), headers=self.headers, timeout=30)
-                    if r.status_code == 200:
-                        r.encoding = "utf-8"
-                        json_res = loads(r.text)
-                        return json_res.get("responseCode") == 1
-                except ReadTimeout:
-                    pass  # Do nothing, just try again
-                except ConnectionError:
-                    sleep(5)  # Sleep 5 seconds, then try again
 
-        return False
