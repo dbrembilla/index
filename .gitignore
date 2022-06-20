@@ -5,3 +5,5 @@ meta/
 oc_graphenricher/
 launch.txt
 *.pyc
+.coverage
+*.sqlite

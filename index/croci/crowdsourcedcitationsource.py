@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # Copyright (c) 2019, Silvio Peroni <essepuntato@gmail.com>
+# Copyright (c) 2022, Davide Brembilla <davide.brembilla98@gmail.com>
 #
 # Permission to use, copy, modify, and/or distribute this software for any purpose
 # with or without fee is hereby granted, provided that the above copyright notice
@@ -26,118 +27,128 @@ from index.identifier.doimanager import DOIManager
 from index.identifier.metaidmanager import MetaIDManager
 from index.citation.oci import Citation
 #from meta.scripts.creator import Creator
-
+from oc_meta.run.meta_process import MetaProcess, run_meta_process
+from index.croci import populator
+from oc_meta.lib.file_manager import get_data
+import shutil
+import subprocess
+import time
+from collections import deque
 
 class CrowdsourcedCitationSource(CSVFileCitationSource):
     def __init__(self, src, local_name="",):
+        self.populator = populator.Populator()
         self.doi = DOIManager()
         self.metaid = MetaIDManager()
-        self.meta_path = f'.{sep}tmp{sep}meta'
-        if not os.path.isdir(self.meta_path):
-            makedirs(self.meta_path)
-        super(CrowdsourcedCitationSource, self).__init__(src, local_name)
+        self.pointer_path = '..%scroci_tmp%spointers%sid_pointers.csv' % (sep, sep, sep)
+        self.meta_config = '..%smeta_config.yaml'
+        self.latest_meta=[]
+        self.last_file = None
+        self.last_row = None
+        self.data = None
+        self.len = None
+        self.status_file = None
+        self.all_files = []
+        self.file_idx = 0
+        self.file_len = 0
+        self.meta_process = MetaProcess(config=os.path.join('..', 'meta_config.yaml'))
+        self.meta_process.workers_number = 3
+        if isinstance(src, (list, set, tuple)):
+            src_collection = src
+        else:
+            src_collection = [src]
 
-    def _meta_preprocess(self):
-        # If there is already a file with the mapping, take that
-        if exists('from_meta'+sep+self.last_file):
-            return self.last_file 
-        # Else, create a  file to give to meta.
-        # This is done by accumulating all valid ids, populating them with additional information
-        # and creating a pointer to the row containing info about the id.
-        pointers = dict()
-        to_meta = []
-        with open(self.last_file, encoding = 'utf8') as source:
+        for src in sorted(src_collection):
+            cur_dir = src
+            if not isdir(cur_dir):
+                cur_dir = os.path.dirname(cur_dir)
 
+            if self.status_file is None:
+                self.status_file = cur_dir + sep + ".dir_citation_source" + local_name
+
+            if exists(self.status_file):
+                with open(self.status_file, encoding="utf8") as f:
+                    row = next(DictReader(f))
+                    self.last_file = row["file"] if row["file"] else None
+                    self.last_row = int(row["line"]) if row["line"] else None
+
+            if isdir(src):
+                for cur_dir, cur_subdir, cur_files in walk(src):
+                    for cur_file in cur_files:
+                        full_path = cur_dir + sep + cur_file
+                        if self.select_file(full_path):
+                            self.all_files.append(full_path)
+            elif self.select_file(src):
+                self.all_files.append(src)
+
+        self.all_files.sort()
+        self.file_len = len(self.all_files)
+
+        self.all_files = deque(self.all_files)
+        # If case the directory contains some files
+        if self.all_files:
+            # If there is no status file (i.e. '.dir_citation_source') available,
+            # the we have to set the current last file as the first of the list of files
+            if self.last_file is None:
+                self.last_file = self.all_files.popleft()
+            # In case the status file is available (i.e. '.dir_citation_source') and
+            # it already specifies the last file that have been processed,
+            # we need to exclude all the files in the list that are lesser than the
+            # last one considered
+            else:
+                tmp_file = self.all_files.popleft()
+                while tmp_file < self.last_file:
+                    tmp_file = self.all_files.popleft()
+        if self.last_file is not None:
+            self.file_idx += 1
+            print("Opening file '%s' (%s out of %s)" % (self.last_file, self.file_idx, self.file_len))
+            self._meta_preprocess(self.last_file)
+            self.data, self.len = self.load(self.pointer_path)
+        
+        if self.last_row is None:
+            self.last_row = -1
+
+
+    def _meta_preprocess(self, last_file):
+        '''This function preprocesses the file and gets the output from meta.
+        To launch this, it needs a meta_config.yaml file containing the specifications.'''
+
+        with open(last_file, 'r', encoding = 'utf8') as source:
             for row in DictReader(source):
-
-                ids_citing = []
-                ids_cited = []
-
-                # For each id, normalise the id. If one of the rows is all None, skip the row, since the citation is not valid.
-                for id in row.get('citing_id').split(' '):
-
-                    if 'doi:' in id:
-                        id= self.doi.normalise(id, include_prefix=True)
-                        if id is not None:
-                            ids_citing.append(id)
-                    elif 'meta:' in id:
-                        id = self.metaid.normalise(id, include_prefix=True)
-                        if id is not None:
-                            ids_citing.append(id)
-
-                if len(ids_citing) == 0:
-                    continue
-
-                # Repeat the process for cited ids
-                for id in row.get('cited_id').split(' '):
-                    if 'doi:' in id:
-                        id= self.doi.normalise(id, include_prefix=True)
-                        if id is not None:
-                            ids_cited.append(id)
-                    elif 'meta:' in id:
-                        id = self.metaid.normalise(id, include_prefix=True)
-                        if id is not None:
-                            ids_cited.append(id)
-
-                if len(ids_cited) == 0:
-                    continue
-
-                creation = row.get('citing_publication_date')
-                if not creation:
-                    creation = ''
-
-                cited_pub_date = row.get("cited_publication_date")
-                if not cited_pub_date:
-                    cited_pub_date = ''
-
-                for id in ids_citing:
-                    if not id in pointers:
-                        pointers[id] = len(to_meta)
-                    #get the info!
-                    
-                    to_meta.append({'id':id,'date':creation})
-                
-                for id in ids_cited:
-                    if not id in pointers:
-                        pointers[id] = len(to_meta)
-                    to_meta.append({'id':id,'date':cited_pub_date})
-                
-        with open('tmp%smapping_%s' % (sep,self.file_idx), 'w', encoding='utf8') as meta_input:
-            fieldnames = ['id', 'date']
-            writer = DictWriter(meta_input, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(to_meta)
-
-
-            
-                
-        
+                self.populator.run(row)
+        output_folder = os.path.join('..', 'output')
+        start = time.time()
+        run_meta_process(self.meta_process)
+        print('TIME: %s' % (time.time() - start))
+        for dirpath, _, filenames in os.walk(os.path.join(output_folder, 'csv')):
+            for file in filenames:
+                self.latest_meta.extend(get_data(os.path.join(dirpath, file)))
         
 
-
-            
-
-            
-        
-        
-
-    def _get_next_in_file(self):
+    def _get_next_in_file(self): #TODO: trasforma perché passi la lunghezza dei pointer
         # A file containing citations was already open
         if self.data is not None:
+
             # Set the next row in the file to consider
+
             self.last_row += 1
             # There are citations in the open fine that have not
             # being gathered yet
             if self.last_row < self.len:
+
                 return self.data[self.last_row]
             # All the citations of the last file parsed have been
             # gathered, thus a new file must be considered, if available
             elif self.all_files:
                 self.last_file = self.all_files.popleft()
+                self.populator.clean_dir()
                 self.file_idx += 1
+
                 print("Opening file '%s' (%s out of %s)" % (self.last_file, self.file_idx, self.file_len))
-                #self.last_file = self._meta_preprocess(self, self.last_file)
-                self.data, self.len = self.load(self.last_file)
+                self._meta_preprocess(self.last_file)
+                
+                self.data, self.len = self.load(self.pointer_path) #instead of loading the last file, it needs to load the pointers file
+                
                 self.last_row = -1
                 return self._get_next_in_file()
             # There are no citation data to consider, since no more
@@ -148,50 +159,66 @@ class CrowdsourcedCitationSource(CSVFileCitationSource):
 
 
 
-    def get_next_citation_data(self):
+    def get_next_citation_data(self): # TODO: trasforma per prendere passo per passo i dati citazionali dai dati di meta
         row = self._get_next_in_file()
-
+        
         while row is not None:
-            # Citing and Cited may have multiple ids? 
-            citing = row.get('citing_id')
-            cited = row.get('cited_id')
-            if citing is not None and cited is not None:
-                citing_list = []
-                for id in citing.split(' '):
-                    # Normalise the id, whether it is a metaid, a doi or a pmid
-                    if 'meta:' in id: # Chec with id_workerk match('^06(.)+0$')
-                        citing_list.append(self.metaid.normalise(id))
-                    elif 'doi:' in id: #match('^10\..+/.+$')
-                        citing_list.append(self.doi.normalise(id))
-                    #elif 'pmid:' in id: # To be added
-                     #   pass
-                cited_list = []
-                # For each id in citing, find the type of id and normalise it.
-                for id in cited.split(' '):
-                    # Normalise the id, whether it is a metaid, a doi or a pmid
-                    if 'meta:' in id: #match('^06(.)+0$')
-                        cited_list.append(self.metaid.normalise(id))
-                    elif 'doi:' in id: #or match('^10\..+/.+$')
-                        cited_list.append(self.doi.normalise(id))
-                    #elif 'pmid:' in id:
-                     #   pass
-                    # No id specified. Might come back to this.
-                # For now, let's start with dois and then it will be integrated with all ids
-                created = row.get("citing_publication_date")
-                if not created:
-                    created = None # Get from meta + merge
+            # There is no possibility that citing or cited are None, since they are preprocessed. 
+            idx_citing = int(row.get('citing_id'))
+            citing = self.latest_meta[idx_citing]['id']
+            created = self.latest_meta[idx_citing]['pub_date']
+            # We get the metaid
+            citing = citing.split('meta:')[1]
+            if '\s' in citing:
+                citing = citing.split('\s')[0]
 
-                cited_pub_date = row.get("cited_publication_date")
-                if not cited_pub_date:
-                    timespan = None # Get from meta + merge
-                else:
-                    c = Citation(None, None, created, None, cited_pub_date, None, None, None, None, "", None, None, None, None, None)
-                    timespan = c.duration
-                
-                self.update_status_file()
-                return citing, cited, created, timespan, None, None# da sistemare
+            idx_cited = int(row.get('cited_id'))
+            cited = self.latest_meta[idx_cited]['id']
+            cited_pub_date = self.latest_meta[idx_cited]['pub_date']
+            cited = cited.split('meta:')[1]
+            if '\s' in cited:
+                cited = cited.split('\s')[0]
 
+            if not created:
+                created = None
+
+            cited_pub_date = row.get("cited_publication_date")
+            if not cited_pub_date:
+                timespan = None
+
+            else:
+                c = Citation(None, None, created, None, cited_pub_date, None, None, None, None, "", None, None, None, None, None)
+                timespan = c.duration
+            
             self.update_status_file()
-            row = self._get_next_in_file()
+            return citing, cited, created, timespan, None, None# da sistemare
 
+        self.update_status_file()
+        row = self._get_next_in_file()
         remove(self.status_file)
+
+if __name__ == '__main__':
+    input_file = "..%ssrc_doi" % (sep)
+    croci = CrowdsourcedCitationSource(input_file)
+    new = []
+    cit = croci.get_next_citation_data()
+    while cit is not None:
+            citing, cited, creation, timespan, journal_sc, author_sc = cit
+            new.append({
+                "citing": citing,
+                "cited": cited,
+                "creation": "" if creation is None else creation,
+                "timespan": "" if timespan is None else timespan,
+                "journal_sc": "" if journal_sc is None else journal_sc,
+                "author_sc": "" if author_sc is None else author_sc
+            })
+            cit = croci.get_next_citation_data()
+    with open('croci_test_complete.csv', 'w+') as w:
+        writer = DictWriter(w, fieldnames=new[0].keys())
+        writer.writeheader()
+        for line in new:
+            writer.writerow(line)
+    #croci.populator.clean_dir()
+
+#java -server -Xmx4g -Dcom.bigdata.journal.AbstractJournal.file=../blazegraph.jnl -Djetty.port=9999 -jar ../blazegraph.jar
+    

@@ -47,7 +47,7 @@ class TestCase(unittest.TestCase):
             reader = csv.DictReader(r)
             for row in reader:
                 self.list_run_before_meta.append(row)
-        self.citations = [['doi:10.1186/1475-2875-10-378','wd:Q34247475'],['wd:Q37203053','doi:10.1016/S0140-6736(08)60424-9'],['doi:10.1016/S0140-6736(08)60424-9','pmid:16635265'],['wd:Q46061806','doi:10.1007/BF02754849'],['wd:Q46061806','pmid:17255227'],['pmid:3910572','wd:Q41194190']]
+        self.citations = [['doi:10.1186/1475-2875-10-378','wd:Q34247475; pmid:20889199'],['doi:10.1016/s0140-6736(10)61340-2','doi:10.1016/S0140-6736(08)60424-9'],['doi:10.1016/S0140-6736(08)60424-9','pmid:16635265'],['wd:Q46061806; pmid:18374409','doi:10.1007/BF02754849'],['wd:Q46061806; pmid:18374409','pmid:17255227'],['pmid:3910572','wd:Q41194190; pmid:398330']]
 
     def test_populate_ids(self):
         for i,id in enumerate(self.test_ids):
