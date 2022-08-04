@@ -118,7 +118,6 @@ def cnc(service, file, parser, ds, multiprocess):
             author_sc,
             journal_sc,
         ) = citation_data
-
         citing_issn = []
         cited_issn = []
         citing_orcid = []
