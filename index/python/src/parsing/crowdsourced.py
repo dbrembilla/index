@@ -17,10 +17,10 @@ from csv import DictReader
 from oc.index.identifier.metaid import MetaIDManager
 from oc.index.preprocessing.populator import MetaFeeder
 from oc.index.parsing.base import CitationParser
-from os import sep
+from os.path import join
 
 class CrowdsourcedParser(CitationParser):
-    def __init__(self, meta_config = f"..{sep}meta_config.yaml"):
+    def __init__(self, meta_config = join("..", "meta_config.yaml")):
         super().__init__()
         self._rows = []
         self._metaid_manager = MetaIDManager()
@@ -35,7 +35,6 @@ class CrowdsourcedParser(CitationParser):
     def parse(self, filename: str):
         super().parse(filename)
         filename = self._meta_feeder.parse(filename)
-        print(filename)
         with open(filename, "r") as fp:
             self._rows = list(DictReader(fp))
         self._items = len(self._rows)
