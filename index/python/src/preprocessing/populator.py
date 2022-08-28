@@ -245,11 +245,6 @@ class IDPopulator:
     """This class is responsible for validating and populating a string of ids"""
 
     def __init__(self) -> None:
-        self.doi = DOIManager()
-        self.pmid = PMIDManager()
-        self.isbn = ISBNManager()
-        self.metaid = MetaIDManager()
-        self.wikidata_id = WikiDataIDManager()
         self.wd_finder =  WikidataResourceFinder(queries=ID_WD_QUERIES)
  
         self.ids = {
@@ -322,7 +317,7 @@ class IDPopulator:
                             f"There is more than one wikidata id for {identifiers[key]}"
                         )
                     # we get the qid in the format {[{'qid':{'value':'https://wikidata.org/entity/Q123'}}]}
-                    possible_wd = self.wikidata_id.normalise(possible_wd["qid"])
+                    possible_wd = getattr(self.ids['wikidata'], "normalise")(possible_wd["qid"])
 
                     if possible_wd is not None:
                         identifiers["wikidata"] = possible_wd
@@ -520,11 +515,11 @@ class MetaFeeder:
             date = ids[id.pop("start_id")]
 
             pop_row = self.metadata_populator.launch_service(id)  # this launchs the pipeline
-            # If the pipeline does not find a date, use the date given to give to Meta.
-            pop_row["author"] = self.author_pop.get_author_info(ids, result)
+            pop_row["author"] = self.author_pop.get_author_info(ids, pop_row)
             
-            if len(str(pop_row["pub_date"])) == 0:
+            if pop_row.get("pub_date") is None:
                 pop_row["pub_date"] = date
+            # If the pipeline does not find a date, use the date given to give to Meta.
             # Else, use the date found in the pipeline. In the end, the date used will be the one validated by meta.
             result.append(pop_row)
 

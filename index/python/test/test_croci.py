@@ -47,7 +47,6 @@ class CROCITest(unittest.TestCase):
         cit = parser.get_next_citation_data()
         while cit is not None:
             citing, cited, citing_date, cited_date, journal_sc, author_sc = cit
-            print(cit)
             new.append(
                 {
                     "citing": citing,
@@ -77,8 +76,9 @@ class CROCITest(unittest.TestCase):
                 }
             )
             cit = parser.get_next_citation_data()
-
         with open(self.citations, encoding="utf8") as f:
             old = list(DictReader(f))
-        
-        self.assertEqual(new, old)
+        for i in range(len(new)):
+            with self.subTest(i=i):
+                print(new[i])
+                self.assertEqual(new[i], old[i])
