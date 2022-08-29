@@ -80,5 +80,4 @@ class CROCITest(unittest.TestCase):
             old = list(DictReader(f))
         for i in range(len(new)):
             with self.subTest(i=i):
-                print(new[i])
                 self.assertEqual(new[i], old[i])

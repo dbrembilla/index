@@ -39,11 +39,6 @@ ID_WD_QUERIES = {
     "doi":"SELECT ?doi WHERE {{wd:{value} wdt:P356 ?doi }} ",
     "pmid":"SELECT ?pmid WHERE {{wd:{value} wdt:P698 ?pmid}}",
     "isbn":"SELECT(GROUP_CONCAT( ?booknumber; separator = ' ') as ?isbn) WHERE {{wd:{value} wdt:P212|wdt:P957 ?booknumber}}",
-    "other_ids": """
-    SELECT ?doi ?pmid  (GROUP_CONCAT( ?booknumber; separator = ' ') as ?isbn) 
-    WHERE {{{{ wd:{value} wdt:P356 ?doi }} UNION {{ wd:{value} wdt:P698 ?pmid }} UNION {{ wd:{value} wdt:P212|wdt:P957 ?booknumber}} 
-    }} group by ?doi ?pmid ?isbn
-        """,
     "qid": """SELECT DISTINCT ?qid 
     WHERE {{{{  ?qid wdt:P356 '{value}'}} UNION {{?qid wdt:P698 '{value}'}} UNION {{  ?qid wdt:P212|wdt:P957 '{value}'}}
         }}"""
@@ -173,7 +168,7 @@ def datacite_preprocessing(values, id):  # TODO: better preprocessing
             for identifier in person["nameIdentifiers"]:
                 if identifier.get("nameIdentifierScheme") == "ORCID":
                     orcid = identifier.get("nameIdentifier").split("orcid.org/")[1]
-                    orcid = f" [{orcid}]"
+                    orcid = f" [orcid:{orcid}]"
                     break
             name = f"{person['familyName']}, {person['givenName']}{orcid}"
             authors.append(name)
@@ -257,7 +252,7 @@ class IDPopulator:
         self.seen_ids = {}
         self.id_num = 0
 
-    def validate_ids(self, ids) -> dict: 
+    def validate_ids(self, ids:str) -> dict: 
         """This method transforms an id string into a dictionary with multiple ids and launchs the right pipeline
         :params ids: a string with the ids separated by ';'
         :params return_ids: a boolean that indicates if just the ids need to be cached
@@ -330,20 +325,22 @@ class IDPopulator:
                         id, value = identifiers["wikidata"]
                     )
                     
-                    if new_id is not None and new_id.get(key) is not None:
-                        identifiers[id] = new_id[id]
-
+                    if new_id is not None and new_id.get(id) is not None and new_id.get(id) != "":
+                        to_add = []
+                        for el in new_id[id].split(" "):
+                            to_add.append(getattr(self.ids[id], "normalise")(el))
+                        identifiers[id] = " ".join(to_add)
         for identifier in identifiers:
-            for id in identifier.split(" "):
-                validated = getattr(self.ids[id], "normalise")(identifiers[id])
-                id = f"{id}:{validated}"
+            for id_n in identifier.split(" "):
+                
+                id = f"{identifier}:{id_n}"
                 self.seen_ids[id] = self.id_num
         return (
             identifiers,
             self.id_num,
         )  # returns a tuple with the identifiers and the position of the id
 
-    def populate_ids(self, ids):
+    def populate_ids(self, ids:str):
         validated = self.validate_ids(ids)
         if isinstance(validated, int):
             return validated
@@ -367,45 +364,40 @@ class AuthorPopulator:
             if 'orcid' in author and 'viaf' in author:
                 authors_complete.append(author)
                 continue
-            author_list = []
-            orcid = ""
-            viaf = ""
-            if "orcid" not in author:
-                try:
-                    author_list = [
-                        (author.split(", ")[1], author.split(", ")[0], None, None)
-                    ]
-                except IndexError:
-                    authors_complete.append(author)
-                    continue
+            author_ids = {}
+            if "[" in author: #if there is an identifier:
+                author, identifiers = author.split(" [")
+                for el in identifiers[:-1].split(" "):
+                    prefix, el = el.split(":")
+                    author_ids[prefix] = el
+            try:
+                last_name, first_name = author.split(", ")
+                
+            except ValueError:
+                authors_complete.append(author)
+                continue
+            author_list = [(first_name, last_name, None, None)]
+            if "orcid" not in author_ids:
                 if "doi" in ids:
                     author_list = self.orcid_api.query(
                         author_list, [(GraphEntity.iri_doi, ids["doi"])]
                     )
+                    
                 elif "pmid" in ids:
                     author_list = self.orcid_api.query(
                         author_list, [(GraphEntity.iri_pmid, ids["pmid"])]
                     )
                 if author_list[0][2] is not None:  # If an orcid is found, add it
-                    orcid = "orcid:" + author_list[0][2]
-            else: 
-                author, orcid = author.split(' [')
-                orcid = orcid.split(']')[0]
-            if "viaf" not in author:
+                    author_ids['orcid'] = author_list[0][2]
+            if "viaf" not in author_ids:
                 possible_viaf = self.viaf_api.query(
-                    author.split(", ")[1], author.split(", ")[0], resource["title"]
+                    first_name, last_name, resource["title"]
                 )
                 if possible_viaf != None:
-                    viaf = "viaf:" + possible_viaf
-
-            if orcid != "" and viaf != "":
-                authors_complete.append((f"{author} [{orcid} {viaf}]"))
-            elif orcid != "":
-                authors_complete.append((f"{author} [{orcid}]"))
-            elif viaf != "":
-                authors_complete.append((f"{author} [{viaf}]"))
-            else:
-                authors_complete.append(author)
+                    author_ids['viaf'] = possible_viaf
+            author_ids = " ".join(f'{k}:{v}' for k,v in author_ids.items())
+            author = f"{last_name}, {first_name} [{author_ids}]"
+            authors_complete.append(author)
         return "; ".join(authors_complete)
 
 class MetaFeeder: 
@@ -472,6 +464,8 @@ class MetaFeeder:
                 ),
             )
             writer.writeheader()
+            
+                
             for citation in citations:
 
                 to_write = {}
