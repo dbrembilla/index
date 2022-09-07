@@ -88,6 +88,19 @@ TYPE_DENOMINATIONS_WD = {
     "Q265158": "peer review",
     "Q3331189": "book",
     "Q7725634": "book",
+    "Q571" : "book",
+    "Q60534428":"edited book",
+    "Q55915575":"journal article",
+    "Q223638":"book",
+    "Q234460":"other",
+    "Q10870555":"report",
+    "Q71631512":"other",
+    "Q1643932":"other",
+    "Q20540385":"book",
+    "Q64548048":"report",
+    "Q1228945":"report",
+    "Q47461344":"other",
+    "Q7433672":"book"
 }
 
 
@@ -172,13 +185,13 @@ def datacite_preprocessing(values, id):  # TODO: better preprocessing
                     break
             name = f"{person['familyName']}, {person['givenName']}{orcid}"
             authors.append(name)
-
-    if values["types"]["resourceTypeGeneral"] in TYPE_DENOMINATIONS_DATACITE:
+    if values["types"].get("resourceTypeGeneral") in TYPE_DENOMINATIONS_DATACITE:
         result["type"] = TYPE_DENOMINATIONS_DATACITE[values["types"]["resourceTypeGeneral"]]
     else:
         result["type"] = ""
-        val =  values["types"]["resourceTypeGeneral"]
-        print(f"Type from Datacite not recognised: {val}")
+        val =  values["types"].get("resourceTypeGeneral")
+        if val is not None:
+            print(f"Type from Datacite not recognised: {val}")
 
     result["publisher"] = values["publisher"]
 
@@ -297,21 +310,20 @@ class IDPopulator:
                     possible_wd = self.wd_finder._call_api(
                         "qid", value = identifiers[key]
                     ) 
-
-                    if possible_wd == None or len(possible_wd) == 0:
+                    if possible_wd is None or len(possible_wd) == 0:
                         if any(char.islower() for char in identifiers[key]):
                             tmp = identifiers[key]
                             identifiers[key] = identifiers[key].upper()
-                            completed, num = self.complete_ids(identifiers)
+                            completed = self.complete_ids(identifiers)
                             completed[key] = tmp
-                            return completed, num
+                            return completed
                         else:
                             continue
                     if len(possible_wd) > 1:
                         raise Warning(
                             f"There is more than one wikidata id for {identifiers[key]}"
                         )
-                    # we get the qid in the format {[{'qid':{'value':'https://wikidata.org/entity/Q123'}}]}
+                    
                     possible_wd = getattr(self.ids['wikidata'], "normalise")(possible_wd["qid"])
 
                     if possible_wd is not None:
@@ -330,25 +342,36 @@ class IDPopulator:
                         for el in new_id[id].split(" "):
                             to_add.append(getattr(self.ids[id], "normalise")(el))
                         identifiers[id] = " ".join(to_add)
-        for identifier in identifiers:
-            for id_n in identifier.split(" "):
-                
-                id = f"{identifier}:{id_n}"
-                self.seen_ids[id] = self.id_num
-        return (
-            identifiers,
-            self.id_num,
-        )  # returns a tuple with the identifiers and the position of the id
+        return identifiers
+            
 
-    def populate_ids(self, ids:str):
+    def populate_ids(self, ids:str) -> tuple:
         validated = self.validate_ids(ids)
         if isinstance(validated, int):
             return validated
         elif validated is not None:
 
             ids = self.complete_ids(validated)
+            tmp = []
+            seen = False
+            pos = self.id_num
+            for identifier in ids:
+                id_n = ids[identifier]
+                for id in id_n.split(" "):
+                    id = f"{identifier}:{id}"
+                    if id in self.seen_ids:
+                        seen = True
+                        pos = self.seen_ids[id]
+                        continue
+                    tmp.append(id)
+            if seen:
+                for el in tmp:
+                    self.seen_ids[el] = pos
+                return pos
             self.id_num += 1
-            return ids
+            for el in tmp:
+                self.seen_ids[el] = pos
+            return ids, pos
 
 
 class AuthorPopulator:
@@ -432,9 +455,8 @@ class MetaFeeder:
                     to_meta.extend(populated[0])
                     citations.append(populated[1])
         file_to_meta = file
-        while sep in file_to_meta:
-            file_to_meta = file_to_meta.split(sep)[1]
-        file_to_meta = f"{file_to_meta[:-4]}_to_meta.csv"
+        file_to_meta = file_to_meta.split(sep)[-1]
+        file_to_meta = f"from_{file_to_meta[:-4]}_to_meta.csv"
         with open(
             join(self.tmp_dir, "meta", file_to_meta),
             "w+",
@@ -447,11 +469,11 @@ class MetaFeeder:
         run_meta_process(self.meta_process)
         os.remove(join(self.tmp_dir, "meta", file_to_meta))
         meta_info = []
-
         for dirpath, _, filenames in os.walk(join(self.meta_folder, "csv")):
             for el in filenames:
                 if file_to_meta[:-4] in el:
-                    meta_info.extend(get_data(join(dirpath, el)))
+                    meta_info = (get_data(join(dirpath, el)))
+                    os.remove(join(dirpath, el))
                     break
         with open(join(self.tmp_dir, file_to_meta), "w+") as output:
             writer = csv.DictWriter(
@@ -476,6 +498,7 @@ class MetaFeeder:
                 to_write["cited_id"] = f"meta:{cited}"
                 to_write["cited_publication_date"] = meta_info[citation[1]]["pub_date"]
                 writer.writerow(to_write)
+        self.id_populator.id_num = 0
         return join(self.tmp_dir, file_to_meta)
 
     def run(self, row:dict) -> tuple:

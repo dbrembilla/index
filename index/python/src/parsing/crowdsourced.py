@@ -18,6 +18,8 @@ from oc.index.identifier.metaid import MetaIDManager
 from oc.index.preprocessing.populator import MetaFeeder
 from oc.index.parsing.base import CitationParser
 from os.path import join
+from os import walk
+import time
 
 class CrowdsourcedParser(CitationParser):
     def __init__(self, meta_config = join("..", "meta_config.yaml")):
@@ -62,7 +64,14 @@ class CrowdsourcedParser(CitationParser):
 
 if __name__ == '__main__':
     croci  = CrowdsourcedParser('..\\meta_config.yaml')
-    croci.parse('..\\input\\test.csv')
-    result = croci.get_next_citation_data()
-    while result is not None:
-        result = croci.get_next_citation_data()
+    for dir,path,files in walk('..\\croci_citations'):
+        
+        for file in files:
+            if "csv" not in file[-4:]:
+                continue
+            timer = time.perf_counter()
+            croci.parse(join(dir,file))
+            result = croci.get_next_citation_data()
+            while result is not None:
+                result = croci.get_next_citation_data()
+            print(f"{file} - TIME: {time.perf_counter() - timer}")
