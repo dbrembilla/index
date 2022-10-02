@@ -45,7 +45,8 @@ ID_WD_QUERIES = {
 }
 
 VALID_QUERIES = {
-    "metadata": """SELECT ?id (GROUP_CONCAT( ?a; separator = '; ') as ?author) ?venue ?pub_date ?title ?volume ?editor ?issue ?page ?type_id ?publisher
+    "metadata": """SELECT ?id (GROUP_CONCAT( ?a; separator = '; ') as ?author) 
+    ?venue ?pub_date ?title ?volume ?editor ?issue ?page ?type_id ?publisher
     {{  {{ BIND("{value}" as ?id)
   OPTIONAL {{ wd:{value} wdt:P98 ?editor}}
   OPTIONAL {{ wd:{value} wdt:P1476 ?title }} 
@@ -64,7 +65,7 @@ VALID_QUERIES = {
             ?author_res wdt:P735/wdt:P1705 ?g_name ;
                         wdt:P734/wdt:P1705 ?f_name .
             BIND(CONCAT(?f_name, ", ",?g_name) as ?a) }}
- }} }} group by ?author ?venue ?pub_date ?title ?volume ?issue ?page ?publisher ?type_id ?editor ?id
+ }} }} GROUP BY ?author ?venue ?pub_date ?title ?volume ?issue ?page ?publisher ?type_id ?editor ?id
 
         """,
 }
@@ -200,6 +201,7 @@ def datacite_preprocessing(values, id):  # TODO: better preprocessing
     result["title"] = values["titles"][0]["title"]
 
     result["pub_date"] = str(values["publicationYear"])
+
     return result
 
 class MetadataPopulator:
@@ -324,7 +326,7 @@ class IDPopulator:
                             f"There is more than one wikidata id for {identifiers[key]}"
                         )
                     
-                    possible_wd = getattr(self.ids['wikidata'], "normalise")(possible_wd["qid"])
+                    possible_wd = self.ids['wikidata'].normalise(possible_wd["qid"])
 
                     if possible_wd is not None:
                         identifiers["wikidata"] = possible_wd
@@ -384,7 +386,7 @@ class AuthorPopulator:
     def get_author_info(self, ids:dict, resource:dict) -> str:
         authors_complete = []
         for author in resource["author"].split("; "):
-            if 'orcid' in author and 'viaf' in author:
+            if 'orcid:' in author and 'viaf:' in author:
                 authors_complete.append(author)
                 continue
             author_ids = {}
@@ -450,7 +452,6 @@ class MetaFeeder:
             reader = csv.DictReader(input)
             for row in reader:
                 populated = self.run(row)
-
                 if populated is not None:
                     to_meta.extend(populated[0])
                     citations.append(populated[1])
@@ -467,7 +468,7 @@ class MetaFeeder:
             for row in to_meta:
                 writer.writerow(row)
         run_meta_process(self.meta_process)
-        os.remove(join(self.tmp_dir, "meta", file_to_meta))
+        #os.remove(join(self.tmp_dir, "meta", file_to_meta))
         meta_info = []
         for dirpath, _, filenames in os.walk(join(self.meta_folder, "csv")):
             for el in filenames:
@@ -527,12 +528,13 @@ class MetaFeeder:
                 found_ids.append(id)
 
         for i in range(len(found_ids)):
-            id = found_ids[i]
+            id = found_ids[i] # get each id
 
-            date = ids[id.pop("start_id")]
+            date = ids[id.pop("start_id")] # get the date in input for each id
+        
 
             pop_row = self.metadata_populator.launch_service(id)  # this launchs the pipeline
-            pop_row["author"] = self.author_pop.get_author_info(ids, pop_row)
+            pop_row["author"] = self.author_pop.get_author_info(id, pop_row)
             
             if pop_row.get("pub_date") is None:
                 pop_row["pub_date"] = date

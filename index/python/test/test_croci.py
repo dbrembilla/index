@@ -32,6 +32,7 @@ class CROCITest(unittest.TestCase):
         test_dir = join("index", "python", "test", "data")
         self.input = join(test_dir, "croci_dump.csv")
         self.citations = join(test_dir, "croci_citations.csv")
+        #TODO: remove when meta is out
         if not os.path.isfile('blazegraph.jnl'):
             url = 'https://github.com/blazegraph/database/releases/download/BLAZEGRAPH_2_1_6_RC/blazegraph.jar'
             wget.download(url=url, out='.')

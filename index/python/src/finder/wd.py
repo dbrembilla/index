@@ -19,10 +19,9 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from urllib.parse import quote
 from oc.index.finder.base import ResourceFinder
 
-import oc.index.utils.dictionary as dict_utils
-
 BASE_QUERIES = {
-    "base_info" : """SELECT (GROUP_CONCAT( ?ids; separator = ', ') as ?orcid) ?issn ?pub_date  WHERE {{OPTIONAL {{ wd:{value} wdt:P123 ?publisher.
+    "base_info" : """SELECT (GROUP_CONCAT( ?ids; separator = ', ') as ?orcid) ?issn ?pub_date  
+                    WHERE {{OPTIONAL {{ wd:{value} wdt:P123 ?publisher.
                                             ?publisher wdt:P236 ?issn}}
                                    OPTIONAL{{ {value} wdt:P577 ?date.
                                            BIND(SUBSTR(str(?date), 0, 5) as ?pub_date)}}
@@ -37,16 +36,15 @@ class WikidataResourceFinder(ResourceFinder):
     def __init__(self, data={}, use_api_service=True, api_key=None, queries = dict()):
         super().__init__(data, use_api_service)
         self.api = "https://query.wikidata.org/sparql"
-        self._headers = 'ResourceFinder / OpenCitations Indexes - (http://opencitations.net; mailto:contact@opencitations.net)'
+        self._headers = 'ResourceFinder / OpenCitations Indexes -'
+        ' (http://opencitations.net; mailto:contact@opencitations.net)'
         self.sparql = SPARQLWrapper(self.api , agent= self._headers)
         self.valid_queries = dict()
         for el in queries:
-            self.valid_queries[el] = queries[el]        
+            self.valid_queries[el] = queries[el] 
+        self._dm = self.__id_type_manager_class(data, use_api_service)
 
     
-    # The implementation of the following methods is strictly dependent on the actual
-    # implementation of the previous three methods, since they strictly reuse them
-    # for returning the result.
     def normalise(self, id_string):
         """_summary_
 
@@ -101,7 +99,7 @@ class WikidataResourceFinder(ResourceFinder):
             return self._data[id_string]["issn"]
 
     def is_valid(self, id_string):
-        """_summary_
+        """Validates an ID
 
         Args:
             id_string (_type_): _description_
@@ -139,7 +137,7 @@ class WikidataResourceFinder(ResourceFinder):
         try:
             query = query.format(**kwargs)
         except:
-            raise ValueError("Not enough values")
+            raise ValueError("Not enough values to complete the query")
         self.sparql.setQuery(query)
         self.sparql.setReturnFormat(JSON) 
         response = self.sparql.query().convert()
