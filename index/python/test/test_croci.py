@@ -32,6 +32,7 @@ class CROCITest(unittest.TestCase):
         test_dir = join("index", "python", "test", "data")
         self.input = join(test_dir, "croci_dump.csv")
         self.citations = join(test_dir, "croci_citations.csv")
+        #TODO: remove when meta is out
         if not os.path.isfile('blazegraph.jnl'):
             url = 'https://github.com/blazegraph/database/releases/download/BLAZEGRAPH_2_1_6_RC/blazegraph.jar'
             wget.download(url=url, out='.')
@@ -47,7 +48,6 @@ class CROCITest(unittest.TestCase):
         cit = parser.get_next_citation_data()
         while cit is not None:
             citing, cited, citing_date, cited_date, journal_sc, author_sc = cit
-            print(cit)
             new.append(
                 {
                     "citing": citing,
@@ -77,8 +77,8 @@ class CROCITest(unittest.TestCase):
                 }
             )
             cit = parser.get_next_citation_data()
-
         with open(self.citations, encoding="utf8") as f:
             old = list(DictReader(f))
-        
-        self.assertEqual(new, old)
+        for i in range(len(new)):
+            with self.subTest(i=i):
+                self.assertEqual(new[i], old[i])

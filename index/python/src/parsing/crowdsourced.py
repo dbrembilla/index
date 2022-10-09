@@ -17,10 +17,12 @@ from csv import DictReader
 from oc.index.identifier.metaid import MetaIDManager
 from oc.index.preprocessing.populator import MetaFeeder
 from oc.index.parsing.base import CitationParser
-from os import sep
+from os.path import join
+from os import walk
+import time
 
 class CrowdsourcedParser(CitationParser):
-    def __init__(self, meta_config = f"..{sep}meta_config.yaml"):
+    def __init__(self, meta_config = join("..", "meta_config.yaml")):
         super().__init__()
         self._rows = []
         self._metaid_manager = MetaIDManager()
@@ -35,7 +37,6 @@ class CrowdsourcedParser(CitationParser):
     def parse(self, filename: str):
         super().parse(filename)
         filename = self._meta_feeder.parse(filename)
-        print(filename)
         with open(filename, "r") as fp:
             self._rows = list(DictReader(fp))
         self._items = len(self._rows)
@@ -63,7 +64,14 @@ class CrowdsourcedParser(CitationParser):
 
 if __name__ == '__main__':
     croci  = CrowdsourcedParser('..\\meta_config.yaml')
-    croci.parse('..\\input\\test.csv')
-    result = croci.get_next_citation_data()
-    while result is not None:
-        result = croci.get_next_citation_data()
+    for dir,path,files in walk('..\\croci_citations'):
+        
+        for file in files:
+            if "csv" not in file[-4:]:
+                continue
+            timer = time.perf_counter()
+            croci.parse(join(dir,file))
+            result = croci.get_next_citation_data()
+            while result is not None:
+                result = croci.get_next_citation_data()
+            print(f"{file} - TIME: {time.perf_counter() - timer}")

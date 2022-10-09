@@ -24,38 +24,49 @@ from time import sleep
 from oc.index.identifier.base import IdentifierManager
 
 class MetaIDManager(IdentifierManager):
-    def __init__(self, data = {}, use_api_service=False): #da mettere True per il futuro
+    def __init__(self, data = {}, use_api_service=False): 
 
-        self.p = "meta:br/"
+        self.p = "meta:"
         self.use_api_service=use_api_service
-        #self.metaid_uri = "https://w3id.org/oc/meta/br/060" #test from the suffix
+        self._api = "https://w3id.org/oc/meta/"
+        self._data = data
         super(MetaIDManager, self).__init__()
-
-    def set_valid(self, id_string):
-        metaid = self.normalise(id_string, include_prefix=True)
-
-        if self.valid_metaid.get_value(metaid) is None:
-            self.valid_metaid.add_value(metaid, "v")
 
     def is_valid(self, id_string): #  verifies if is valid and is in the list of valid metaids
         metaid = self.normalise(id_string, include_prefix=True)
         if metaid is None:
-
             return False
-        else: #to be added once i clarify for the existence
-            if self.valid_metaid.get_value(metaid) is None:
-                if self.__metaid_exists(metaid):
-                    self.valid_metaid.add_value(metaid, "v")
-                else:
-                    self.valid_metaid.add_value(metaid, "i")
+        else: 
+            if not metaid in self._data or self._data[metaid] is None:
+                return self.__metaid_exists(metaid)
+            return self._data[metaid].get("valid")
 
-            return "v" in self.valid_metaid.get_value(metaid) 
-
-    def normalise(self, id_string, include_prefix=False): # Returns MetaID itself without the prefix
-        try: # QUA VEDERE BISOGNA UNMATCHARE SE NON INIZIA CON 06< e termina con 0
-            metaid_string = sub("\0+", "", sub("\s+", "", unquote(id_string[id_string.index("06"):])))
+    def normalise(self, id_string, include_prefix=False):
+        try:
+            metaid_string = sub("\0+", "", sub("\s+", "", unquote(id_string[id_string.index("/")-2:])))
             return "%s%s" % (self.p if include_prefix else "", metaid_string.lower().strip())
         except:  # Any error in processing the MetaID will return None
             return None
+
+    def __metaid_exists(self, metaid_full):
+        if self._use_api_service:
+            metaid = self.normalise(metaid_full)
+            tentative = 3
+            while tentative:
+                tentative -= 1
+                try:
+                    r = get(self._api + quote(metaid), headers=self._headers, timeout=30)
+                    if r.status_code == 200:
+                        r.encoding = "utf-8"
+                        json_res = loads(r.text)
+                        return json_res.get("responseCode") == 1
+                except ReadTimeout:
+                    # Do nothing, just try again
+                    pass
+                except ConnectionError:
+                    # Sleep 5 seconds, then try again
+                    sleep(5)
+
+        return False
 
 

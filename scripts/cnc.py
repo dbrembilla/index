@@ -102,6 +102,7 @@ def cnc(service, file, parser, ds, multiprocess):
     logger.info(
         f"Working on {len(citation_data_list)} citation data with related support information"
     )
+    
     citations_created = 0
     idbase_url = _config.get(service, "idbaseurl")
     prefix = _config.get(service, "prefix")
@@ -122,7 +123,8 @@ def cnc(service, file, parser, ds, multiprocess):
         cited_issn = []
         citing_orcid = []
         cited_orcid = []
-        if crossref_rc.is_valid(citing) and crossref_rc.is_valid(cited):
+        #if crossref_rc.is_valid(citing) and crossref_rc.is_valid(cited):
+        if True:
             if citing_date is None:
                 citing_date = rf_handler.get_date(citing)
 
